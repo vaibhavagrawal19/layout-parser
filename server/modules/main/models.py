@@ -10,6 +10,29 @@ class ModelChoice(str, Enum):
 	v2_doctr = 'v2_doctr'
 	worddetector = 'worddetector'
 
+class Point(BaseModel):
+    x: int = Field(
+        description="X coordinate of the point"
+    )
+    
+    y: int = Field(
+        description="Y coordinate of the point"
+    )
+
+
+class SeamFormerChoice(str, Enum):
+    i2 = "I2"
+    bks = "BKS"
+
+
+class Polygon(BaseModel):
+    points: List[Point]
+
+
+class SeamFormerResponse(BaseModel):
+    image_name: str
+    polygons: List[Polygon]
+
 
 class BoundingBox(BaseModel):
 	x: int = Field(
