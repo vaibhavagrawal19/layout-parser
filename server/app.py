@@ -20,7 +20,7 @@ app = FastAPI(
 )
 
 @app.on_event("startup")
-async def load_seamformer_startup():
+async def on_startup_():
 	load_seamformer_models()
 
 @app.middleware('http')

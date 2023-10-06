@@ -1,5 +1,6 @@
 import uuid
 from typing import List
+import shutil
 
 import cv2
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -99,6 +100,8 @@ def seamformer_debugger(
     args_json: SeamFormerArgs = Depends(),
 	model_variant: SeamFormerChoice = Form(SeamFormerChoice.I2),
     ):
+    if os.path.exists("output.zip"):
+        os.remove("output.zip")
     global i2_weights
     global bks_weights
     """
@@ -140,7 +143,10 @@ def seamformer_debugger(
     }
 
     Inference(args)
-    return True
+    os.system("zip -r output.zip output")
+    shutil.rmtree("output")
+    os.mkdir("output")
+    return FileResponse("output.zip", filename="output.zip", headers={"Content-Disposition": f"attachment; filename=output.zip"})
 
 
 @router.post('/seamformer/visualize')
