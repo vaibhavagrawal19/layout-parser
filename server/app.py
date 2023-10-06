@@ -4,10 +4,13 @@ from dateutil.tz import gettz
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+import sys
+
 from .modules.cegis.routes import router as cegis_router
 from .modules.main.routes import router as main_router
 from .modules.postprocess.routes import router as postprocess_router
 from .modules.preprocess.routes import router as preprocess_router
+from .modules.main.routes import load_seamformer_models
 
 app = FastAPI(
 	title='Layout Parser API',
@@ -15,6 +18,10 @@ app = FastAPI(
 	docs_url='/layout/docs',
 	openapi_url='/layout/openapi.json'
 )
+
+@app.on_event("startup")
+async def load_seamformer_startup():
+	load_seamformer_models()
 
 @app.middleware('http')
 async def log_request_timestamp(request: Request, call_next):

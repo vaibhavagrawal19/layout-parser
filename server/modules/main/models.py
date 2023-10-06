@@ -21,8 +21,8 @@ class Point(BaseModel):
 
 
 class SeamFormerChoice(str, Enum):
-    i2 = "I2"
-    bks = "BKS"
+    I2 = "I2"
+    BKS = "BKS"
 
 
 class Polygon(BaseModel):
@@ -56,6 +56,22 @@ class BoundingBox(BaseModel):
 			w=coords[2] - coords[0],
 			h=coords[3] - coords[1]
 		)
+	
+
+class SeamFormerArgs(BaseModel):
+	visualize_binarized: bool = Field(
+		description="if set to True, binarized images will be output"
+	)
+	visualize_scribbles: bool = Field(
+		description="if set to True, images with scribble annotations will be output"
+	)
+	visualize_polygons: bool = Field(
+		description="if set to True, images with polygonal annotations will be output"
+	)
+	json_output: bool = Field(
+		description="if set to True, the JSON containing the predicted polygons will be output"
+	)
+
 
 
 class Region(BaseModel):

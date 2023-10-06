@@ -53,6 +53,7 @@ def save_uploaded_image(image: UploadFile) -> str:
 	with open(location, 'wb+') as f:
 		shutil.copyfileobj(image.file, f)
 	logtime(t, 'Time took to save one image')
+	print(f"save_uploaded_image returns successfully!")
 	return location
 
 # def convert_geometry_to_bbox(

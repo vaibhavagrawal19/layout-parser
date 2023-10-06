@@ -5,31 +5,192 @@ import cv2
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse
 
+# from ...app import load_seamformer_models
+
 from .dependencies import save_uploaded_images
 # from .helper import (process_image, process_image_craft,
 #                      process_image_worddetector, process_multiple_image_craft,
 #                      process_multiple_image_doctr,
 #                      process_multiple_image_doctr_v2,
 #                      process_multiple_image_worddetector, save_uploaded_image)
-from .models import LayoutImageResponse, ModelChoice, SeamFormerResponse, SeamFormerChoice
+from .models import LayoutImageResponse, ModelChoice, SeamFormerResponse, SeamFormerChoice, SeamFormerArgs, BoundingBox
 # from .post_helper import process_dilate, process_multiple_dilate
 #
+from seamformer.inference import Inference
+
+# File Imports for SeamFormer
+from seamformer.seam_conditioned_scribble_generation import *
+from seamformer.utils import *
+from seamformer.network import *
+from vit_pytorch.vit import ViT
+
+i2_weights = None
+bks_weights = None
+
+
 router = APIRouter(
 	prefix='/layout',
 	tags=['Main'],
 )
 
+def buildModel(settings, weights_path):
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print('Present here : {}'.format(settings))
+    # Encoder settings
+    encoder_layers = settings['encoder_layers']
+    encoder_heads = settings['encoder_heads']
+    encoder_dim = settings['encoder_dims']
+    patch_size = settings['patch_size']
+    # Encoder
+    v = ViT(
+        image_size = settings['img_size'],
+        patch_size =  settings['patch_size'],
+        num_classes = 1000,
+        dim = encoder_dim,
+        depth = encoder_layers,
+        heads = encoder_heads,
+        mlp_dim = 2048)
+    
+    # print('Model Weight Loading ...')
+    # Load pre-trained network + letting the encoder network also trained in the process.
+    network =  SeamFormer(encoder = v,
+        decoder_dim = encoder_dim,      
+        decoder_depth = encoder_layers,
+        decoder_heads = encoder_heads,
+        patch_size = patch_size)
 
+    if weights_path is not None:
+        if os.path.exists(weights_path):
+            try:
+                network.load_state_dict(torch.load(weights_path, map_location=device),strict=True)
+                # print('Network Weights loaded successfully!')
+            except Exception as exp :
+                print('Network Weights Loading Error , Exiting !: %s' % exp)
+                sys.exit()
+        else:
+            print('Network Weights File Not Found')
+            sys.exit()
 
-@router.post('/seamformer', response_model=List[SeamFormerResponse])
-async def doctr_layout_parser(
-	folder_path: str = Depends(save_uploaded_images),
-	model: ModelChoice = Form(SeamFormerChoice.i2),
+    network = network.to(device)
+    network.eval()
+    return network
+
+def load_seamformer_models():
+	settings = {
+        "encoder_layers": 6,
+        "encoder_heads": 8,
+        "encoder_dims": 768,
+        "img_size": 256,
+        "patch_size": 8,
+        "split_size": 256,
+        "threshold": 0.30,
+	}
+	global i2_weights
+	global bks_weights
+	i2_weights = buildModel(settings, "./seamformer/I2.pt")
+	bks_weights = buildModel(settings, "./seamformer/BKS.pt")
+
+# load_seamformer_models()
+
+# @router.post('/seamformer/debug', response_model=List[SeamFormerResponse])
+@router.post('/seamformer/debug')
+def seamformer_debugger(
+    folder_path: str = Depends(save_uploaded_images),
+    args_json: SeamFormerArgs = Depends(),
+	model_variant: SeamFormerChoice = Form(SeamFormerChoice.I2),
     ):
+    global i2_weights
+    global bks_weights
     """
     API endpoint for calling seamformer-layout-parser
+    """ 
+    # if i2_weights is not None:
+    #     print(f"success!")
+    # else:
+    #     print(f"failure")
+    print(f"folder_path: {folder_path}")
+    model_weights = None
+    model_name = None
+    if model_variant == SeamFormerChoice.I2:
+        model_weights = i2_weights
+        model_name = "I2"
+    elif model_variant == SeamFormerChoice.BKS:
+        model_weights = bks_weights
+        model_name = "BKS"
+
+    args = {
+        "mode": "debug",
+        "exp_name": "v0",
+        "input_image_folder": folder_path,
+        "output_image_folder": "./output",
+        "model_weights": model_weights,
+        "input_folder": True,
+        "encoder_layers": 6,
+        "encoder_heads": 8,
+        "encoder_dims": 768,
+        "img_size": 256,
+        "patch_size": 8,
+        "split_size": 256,
+        "threshold": 0.30,
+        "bin_vis": args_json.visualize_binarized,
+        "scr_vis": args_json.visualize_scribbles,
+        "poly_vis": args_json.visualize_polygons,
+        "poly_json": args_json.json_output,
+        "model_name": model_name
+    }
+
+    Inference(args)
+    return True
+
+
+@router.post('/seamformer/visualize')
+def seamformer_debugger(
+    folder_path: str = Depends(save_uploaded_images),
+	model_variant: SeamFormerChoice = Form(SeamFormerChoice.I2),
+    ):
+    global i2_weights
+    global bks_weights
     """
-    print(model.value)
+    API endpoint for calling seamformer-layout-parser
+    """ 
+    # if i2_weights is not None:
+    #     print(f"success!")
+    # else:
+    #     print(f"failure")
+    print(f"folder_path: {folder_path}")
+    model_weights = None
+    model_name = None
+    if model_variant == SeamFormerChoice.I2:
+        model_weights = i2_weights
+        model_name = "I2"
+    elif model_variant == SeamFormerChoice.BKS:
+        model_weights = bks_weights
+        model_name = "BKS"
+
+    args = {
+        "mode": "visualize",
+        "exp_name": "v0",
+        "input_image_folder": folder_path,
+        "output_image_folder": "./output",
+        "model_weights": model_weights,
+        "input_folder": True,
+        "encoder_layers": 6,
+        "encoder_heads": 8,
+        "encoder_dims": 768,
+        "img_size": 256,
+        "patch_size": 8,
+        "split_size": 256,
+        "threshold": 0.30,
+        "bin_vis": False,
+        "scr_vis": False,
+        "poly_vis": False,
+        "poly_json": False,
+        "model_name": model_name
+    }
+
+    Inference(args)
+    filename = os.listdir("./output/vis/")[0]
+    return FileResponse(f"./output/vis/{filename}")
 
 
 # @router.post('/', response_model=List[LayoutImageResponse])
@@ -53,7 +214,7 @@ async def doctr_layout_parser(
 # 	if dilate:
 # 		ret = process_multiple_dilate(ret)
 # 	return ret
-#
+
 #
 # @router.post('/visualize')
 # async def layout_parser_swagger_only_demo(
