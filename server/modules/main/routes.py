@@ -14,7 +14,7 @@ from .dependencies import save_uploaded_images
 #                      process_multiple_image_doctr,
 #                      process_multiple_image_doctr_v2,
 #                      process_multiple_image_worddetector, save_uploaded_image)
-from .models import LayoutImageResponse, ModelChoice, SeamFormerResponse, SeamFormerChoice, SeamFormerArgs, BoundingBox
+from .models import LayoutImageResponse, ModelChoice, SeamFormerResponse, SeamFormerChoice, SeamFormerArgs, PolygonModel, PolygonList, AllImagesPolygonList
 # from .post_helper import process_dilate, process_multiple_dilate
 #
 from seamformer.inference import Inference
@@ -142,6 +142,8 @@ def seamformer_debugger(
         "model_name": model_name
     }
 
+    print(f"poly_json is {args_json.json_output}")
+
     Inference(args)
     os.system("zip -r output.zip output")
     shutil.rmtree("output")
@@ -197,6 +199,79 @@ def seamformer_debugger(
     Inference(args)
     filename = os.listdir("./output/vis/")[0]
     return FileResponse(f"./output/vis/{filename}")
+
+
+@router.post('/seamformer/predict')
+def seamformer_debugger(
+    folder_path: str = Depends(save_uploaded_images),
+	model_variant: SeamFormerChoice = Form(SeamFormerChoice.I2),
+    ):
+    global i2_weights
+    global bks_weights
+    """
+    API endpoint for calling seamformer-layout-parser
+    """ 
+    # if i2_weights is not None:
+    #     print(f"success!")
+    # else:
+    #     print(f"failure")
+    print(f"folder_path: {folder_path}")
+    model_weights = None
+    model_name = None
+    if model_variant == SeamFormerChoice.I2:
+        model_weights = i2_weights
+        model_name = "I2"
+    elif model_variant == SeamFormerChoice.BKS:
+        model_weights = bks_weights
+        model_name = "BKS"
+
+    args = {
+        "mode": "predict",
+        "exp_name": "v0",
+        "input_image_folder": folder_path,
+        "output_image_folder": "./output",
+        "model_weights": model_weights,
+        "input_folder": True,
+        "encoder_layers": 6,
+        "encoder_heads": 8,
+        "encoder_dims": 768,
+        "img_size": 256,
+        "patch_size": 8,
+        "split_size": 256,
+        "threshold": 0.30,
+        "bin_vis": False,
+        "scr_vis": False,
+        "poly_vis": False,
+        "poly_json": True,
+        "model_name": model_name
+    }
+
+    points = Inference(args)
+    # return all_images_polygon_list
+    # points = [
+    #     [[[1, 2], [3, 4], [5, 6]], [[1, 2], [3, 4], [5, 6]]],
+    #     [[[1, 2], [3, 4], [5, 6]], [[1, 2], [3, 4], [5, 6]]],
+    #     [[[1, 2], [3, 4], [5, 6]], [[1, 2], [3, 4], [5, 6]]]
+    # ]
+    image_models = []
+    for image_result in points:
+        polygon_models = []
+        for polygon in image_result:
+            polygon_models.append(PolygonModel(points=polygon))
+        image_models.append(PolygonList(polygons=polygon_models))
+    return AllImagesPolygonList(image_polygons=image_models)
+    # all_images_polygon_list_model = []
+    # for polygon_list in all_images_polygon_list:
+    #     polygon_list_model = []
+    #     for polygon in polygon_list:
+    #         print(len(polygon))
+    #         print(len(polygon[0]))
+    #         polygon_model = IntPairsModel(pairs=polygon)
+    #         polygon_list_model.append(polygon_model)
+    #     # polygon_list_model = PolygonList(polygons=polygon_list_model)
+    #     all_images_polygon_list_model.append(polygon_list_model)
+    # return AllImagesPolygonList(image_polygons=all_images_polygon_list_model)
+
 
 
 # @router.post('/', response_model=List[LayoutImageResponse])

@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, conlist
 
 
 class ModelChoice(str, Enum):
@@ -23,6 +23,15 @@ class Point(BaseModel):
 class SeamFormerChoice(str, Enum):
     I2 = "I2"
     BKS = "BKS"
+
+class PolygonModel(BaseModel):
+    points: conlist(conlist(int))
+
+class PolygonList(BaseModel):
+    polygons: conlist(PolygonModel)
+
+class AllImagesPolygonList(BaseModel):
+	image_polygons: conlist(PolygonList)
 
 
 class Polygon(BaseModel):
