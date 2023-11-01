@@ -11,36 +11,39 @@ class ModelChoice(str, Enum):
 	worddetector = 'worddetector'
 
 class Point(BaseModel):
-    x: int = Field(
-        description="X coordinate of the point"
-    )
-    
-    y: int = Field(
-        description="Y coordinate of the point"
-    )
+	x: int = Field(
+		description="X coordinate of the point"
+	)
+	
+	y: int = Field(
+		description="Y coordinate of the point"
+	)
 
 
 class SeamFormerChoice(str, Enum):
-    I2 = "I2"
-    BKS = "BKS"
+	I2 = "I2"
+	I2_PIH = "I2_PIH"
+	I2_KG = "I2_KG"
+	BKS = "BKS"
+	URDU = "URDU"
 
 class PolygonModel(BaseModel):
-    points: conlist(conlist(int))
+	points: conlist(conlist(int))
 
 class PolygonList(BaseModel):
-    polygons: conlist(PolygonModel)
+	polygons: conlist(PolygonModel)
 
 class AllImagesPolygonList(BaseModel):
 	image_polygons: conlist(PolygonList)
 
 
 class Polygon(BaseModel):
-    points: List[Point]
+	points: List[Point]
 
 
 class SeamFormerResponse(BaseModel):
-    image_name: str
-    polygons: List[Polygon]
+	image_name: str
+	polygons: List[Polygon]
 
 
 class BoundingBox(BaseModel):
