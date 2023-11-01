@@ -144,3 +144,7 @@ staticfiles
 
 # custom files and folders to exclude
 images
+
+# seamformer-related
+seamformer/*.pt
+seamformer/assets
